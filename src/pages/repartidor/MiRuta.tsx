@@ -11,7 +11,7 @@ const TERMINADOS: EstadoPedido[] = ['entregado', 'no_entregado', 'reprogramado']
 
 export default function MiRuta() {
   const { nombreUsuario, signOut } = useAuth()
-  const { pedidos, loading } = useRepartidorPedidos()
+  const { pedidos, loading, error, refetch } = useRepartidorPedidos()
   const navigate = useNavigate()
 
   const pendientes = pedidos.filter((p) => PENDIENTES.includes(p.estado))
@@ -61,6 +61,13 @@ export default function MiRuta() {
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-xl border border-coral-100 p-8 text-center">
+            <AlertTriangle size={32} className="mx-auto mb-3 text-coral-400" />
+            <p className="text-gray-700 font-medium">No se pudieron cargar tus pedidos</p>
+            <p className="text-sm text-gray-400 mt-1">{error}</p>
+            <button onClick={refetch} className="mt-4 text-sm text-celeste-600 underline">Reintentar</button>
           </div>
         ) : pedidos.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">

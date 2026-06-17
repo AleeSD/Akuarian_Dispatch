@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Pedidos from './pages/Pedidos'
@@ -13,6 +14,12 @@ import Reportes from './pages/Reportes'
 import MiRuta from './pages/repartidor/MiRuta'
 import PedidoAccion from './pages/repartidor/PedidoAccion'
 
+const Spinner = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="animate-spin rounded-full h-8 w-8 border-2 border-celeste-500 border-t-transparent" />
+  </div>
+)
+
 function ProtectedRoute({
   children,
   requiredRole,
@@ -22,17 +29,13 @@ function ProtectedRoute({
 }) {
   const { user, rol, loading } = useAuth()
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-celeste-500 border-t-transparent" />
-      </div>
-    )
-  }
-
+  if (loading) return <Spinner />
   if (!user) return <Navigate to="/login" replace />
 
-  if (requiredRole && rol && !requiredRole.includes(rol)) {
+  // user autenticado pero rol aún no cargado (ventana post-login mientras loadUserProfile corre)
+  if (rol === null) return <Spinner />
+
+  if (requiredRole && !requiredRole.includes(rol)) {
     return rol === 'repartidor'
       ? <Navigate to="/mi-ruta" replace />
       : <Navigate to="/dashboard" replace />
@@ -44,13 +47,7 @@ function ProtectedRoute({
 function AppRoutes() {
   const { user, rol, loading } = useAuth()
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-celeste-500 border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <Spinner />
 
   return (
     <Routes>
@@ -144,7 +141,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <ErrorBoundary>
+          <AppRoutes />
+        </ErrorBoundary>
         <Toaster
           position="top-right"
           toastOptions={{
@@ -159,6 +158,7 @@ export default function App() {
           }}
         />
       </AuthProvider>
+
     </BrowserRouter>
   )
 }

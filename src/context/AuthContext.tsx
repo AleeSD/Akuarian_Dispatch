@@ -1,7 +1,10 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import type { RolUsuario } from '../types'
+
+const PGRST_NO_ROWS = 'PGRST116'
 
 interface AuthContextValue {
   user: User | null
@@ -24,17 +27,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [nombreUsuario, setNombreUsuario] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  async function loadUserProfile(userId: string) {
-    const { data: usuario } = await supabase
+  async function loadUserProfile(userId: string, attempt = 0): Promise<void> {
+    const { data: usuario, error } = await supabase
       .from('usuarios')
       .select('rol, nombre')
       .eq('id', userId)
       .single()
 
-    if (usuario) {
+    if (!error && usuario) {
       setRol(usuario.rol as RolUsuario)
       setNombreUsuario(usuario.nombre)
-
       if (usuario.rol === 'repartidor') {
         const { data: rep } = await supabase
           .from('repartidores')
@@ -43,7 +45,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single()
         setRepartidorId(rep?.id ?? null)
       }
+      return
     }
+
+    // El usuario no existe en la tabla usuarios → limbo real, signOut inmediato
+    if (error?.code === PGRST_NO_ROWS) {
+      await supabase.auth.signOut()
+      return
+    }
+
+    // Error de red / timeout / servidor → reintento con backoff corto
+    if (attempt < 2) {
+      await new Promise<void>((r) => setTimeout(r, 400 * (attempt + 1)))
+      return loadUserProfile(userId, attempt + 1)
+    }
+
+    // Reintentos agotados
+    toast.error('Error de conexión al cargar tu perfil. Intenta de nuevo.')
+    await supabase.auth.signOut()
   }
 
   useEffect(() => {
@@ -61,11 +80,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
-        loadUserProfile(session.user.id)
+        loadUserProfile(session.user.id).finally(() => setLoading(false))
       } else {
         setRol(null)
         setRepartidorId(null)
         setNombreUsuario(null)
+        setLoading(false)
       }
     })
 

@@ -20,7 +20,7 @@ export default function Rutas() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [fecha, setFecha] = useState(today())
-  const { rutas, loading, refetch } = useRutas(fecha)
+  const { rutas, loading, error, refetch } = useRutas(fecha)
   const [showModal, setShowModal] = useState(false)
   const [repartidores, setRepartidores] = useState<Repartidor[]>([])
   const [pedidosSinRuta, setPedidosSinRuta] = useState<VPedidoDetalle[]>([])
@@ -115,6 +115,12 @@ export default function Rutas() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
+        ) : error ? (
+          <Card className="p-12 text-center">
+            <p className="text-coral-500 font-medium">Error al cargar rutas</p>
+            <p className="text-sm text-gray-400 mt-1">{error}</p>
+            <button onClick={refetch} className="mt-4 text-sm text-celeste-600 underline">Reintentar</button>
+          </Card>
         ) : rutas.length === 0 ? (
           <Card className="p-12 text-center">
             <MapPin size={40} className="mx-auto mb-3 text-gray-300" />

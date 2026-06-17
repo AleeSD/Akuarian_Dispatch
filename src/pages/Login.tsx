@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Truck } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -17,30 +17,36 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function Login() {
-  const { signIn, rol } = useAuth()
+  const { signIn, rol, user } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [loggingIn, setLoggingIn] = useState(false)
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
 
+  // Navegar una vez que el rol se popule tras el login, sin depender de setTimeout
+  useEffect(() => {
+    if (!loggingIn) return
+    if (rol !== null) {
+      navigate(rol === 'repartidor' ? '/mi-ruta' : '/dashboard')
+    } else if (user === null) {
+      // signIn tuvo éxito pero loadUserProfile falló (forzó signOut)
+      setLoggingIn(false)
+      setLoading(false)
+      toast.error('No se pudo cargar tu perfil. Intenta de nuevo.')
+    }
+  }, [rol, user, loggingIn, navigate])
+
   async function onSubmit(data: FormData) {
     setLoading(true)
     try {
       await signIn(data.email, data.password)
-      // After login, rol is updated async; navigate based on email or wait
-      // We'll do a small delay and check
-      await new Promise((r) => setTimeout(r, 800))
-      const currentRol = rol
-      if (currentRol === 'repartidor') {
-        navigate('/mi-ruta')
-      } else {
-        navigate('/dashboard')
-      }
+      setLoggingIn(true)
+      // La navegación ocurre en el useEffect cuando rol se populate
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error al iniciar sesión')
-    } finally {
       setLoading(false)
     }
   }
