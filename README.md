@@ -102,41 +102,75 @@ src/
 
 ## Instalación y ejecución
 
+### Prerequisitos
+- **Node.js** 18 o superior (`node -v`)
+- **npm** 9+ (`npm -v`)
+- Una cuenta de **Supabase** con acceso al proyecto `ajbkzbtmknlmuucotdol` (o uno propio con el mismo esquema)
+
+### 1. Clonar e instalar dependencias
+
 ```bash
-# Instalar dependencias
+git clone <repo-url>
+cd SLDispatchTrack
 npm install
-
-# Desarrollo
-npm run dev
-
-# Build de producción
-npm run build
-
-# Preview del build
-npm run preview
 ```
 
-### Variables de entorno (`.env`)
+> Aviso: `npm install` muestra 2 vulnerabilidades altas en `esbuild` (transitiva vía Vite). **Solo afectan al servidor de desarrollo local, no a producción.** El fix automático sube Vite 5 → 8 y es _breaking_; revisar manualmente antes de aplicar.
+
+### 2. Configurar variables de entorno
+
+Copiar `.env.example` a `.env` y completar con las claves del proyecto Supabase:
 
 ```env
 VITE_SUPABASE_URL=https://ajbkzbtmknlmuucotdol.supabase.co
 VITE_SUPABASE_ANON_KEY=<tu_anon_key>
 ```
 
+> La `anon key` se obtiene desde el panel de Supabase → **Settings → API → anon public**.
+
+### 3. Iniciar el proyecto
+
+```bash
+# Desarrollo (http://localhost:5173)
+npm run dev
+
+# Build de producción
+npm run build
+
+# Preview del build de producción
+npm run preview
+```
+
+Una vez levantado el dev server, abrir <http://localhost:5173> en el navegador y entrar con cualquiera de las credenciales de prueba listadas abajo.
+
 ---
 
 ## Credenciales de prueba
 
-Password universal: `Akuarian2024!`
+Todos los usuarios comparten el password: **`Akuarian2026!`**
 
-| Rol | Email |
+| Rol | Email | Acceso |
+|---|---|---|
+| Admin | `admin@akuarian.pe` | Sistema completo + configuración |
+| Operador | `operador@akuarian.pe` | Pedidos, rutas, clientes |
+| Supervisor | `supervisor@akuarian.pe` | Lectura completa + reportes |
+| Repartidor | `carlos@akuarian.pe` | Vista móvil `/mi-ruta` |
+| Repartidor | `luis@akuarian.pe` | Vista móvil `/mi-ruta` |
+| Repartidor | `pedro@akuarian.pe` | Vista móvil `/mi-ruta` |
+
+> **Tip de prueba**: para ver la vista de repartidor en su forma real, abrir las DevTools del navegador, activar la vista móvil (responsive) y entrar con `carlos@akuarian.pe`.
+
+---
+
+## Scripts disponibles
+
+| Comando | Descripción |
 |---|---|
-| Admin | admin@akuarian.pe |
-| Operador | operador@akuarian.pe |
-| Supervisor | supervisor@akuarian.pe |
-| Repartidor | carlos@akuarian.pe |
-| Repartidor | luis@akuarian.pe |
-| Repartidor | pedro@akuarian.pe |
+| `npm run dev` | Servidor de desarrollo con HMR |
+| `npm run build` | Compila TypeScript y genera build de producción en `dist/` |
+| `npm run preview` | Sirve el build de `dist/` para validarlo localmente |
+
+> Este proyecto **no incluye suite de tests automatizados**. La validación previa al deploy se realiza vía `npm run build` (que ejecuta `tsc` y detecta errores de tipos).
 
 ---
 
