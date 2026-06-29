@@ -15,6 +15,19 @@
   }
 }
 
+@layer components {
+  /* Tokens de superficie reutilizables (densidad/consistencia, sin tocar la paleta) */
+  .surface-app {
+    @apply bg-[#F7F9FC];
+  }
+  .surface-panel {
+    @apply bg-white border border-gray-100 rounded-xl shadow-sm;
+  }
+  .surface-divider {
+    @apply border-gray-100;
+  }
+}
+
 @layer utilities {
   .animate-fadeIn {
     animation: fadeIn 0.2s ease-out;

@@ -88,6 +88,7 @@ export interface Pedido {
   ruta_id: string | null
   creado_por: string | null
   estado: EstadoPedido
+  subestado: string | null
   direccion_entrega: string
   distrito_entrega: string | null
   referencia_entrega: string | null
@@ -159,6 +160,7 @@ export interface VPedidoDetalle {
   id: string
   numero_pedido: string
   estado: EstadoPedido
+  subestado: string | null
   prioridad: number
   fecha_programada: string
   recogido_en: string | null

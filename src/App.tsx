@@ -12,6 +12,7 @@ import Repartidores from './pages/Repartidores'
 import Clientes from './pages/Clientes'
 import Reportes from './pages/Reportes'
 import Configuracion from './pages/Configuracion'
+import Importar from './pages/Importar'
 import MiRuta from './pages/repartidor/MiRuta'
 import PedidoAccion from './pages/repartidor/PedidoAccion'
 
@@ -112,6 +113,12 @@ function AppRoutes() {
       <Route path="/reportes" element={
         <ProtectedRoute requiredRole={['admin', 'operador', 'supervisor']}>
           <Reportes />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/importar" element={
+        <ProtectedRoute requiredRole={['admin', 'operador', 'supervisor']}>
+          <Importar />
         </ProtectedRoute>
       } />
 

@@ -2,6 +2,8 @@
 
 Sistema web de gestión de despachos para **Akuarian SAC**. Permite a operadores gestionar pedidos, rutas y repartidores, y a los repartidores registrar entregas desde el móvil con fotos de evidencia.
 
+> **Estado (jun-2026):** rediseño UX "estilo Beetrack" completo (Fases 0-9), subestados, importación CSV/Excel, exportación `.xlsx` multi-hoja, transversal de seguridad RLS aplicado, y subida de evidencias a Cloudflare R2 con compresión. Ver [docs/ESTADO-DEL-PROYECTO.md](docs/ESTADO-DEL-PROYECTO.md).
+
 ---
 
 ## Stack tecnológico
@@ -11,13 +13,15 @@ Sistema web de gestión de despachos para **Akuarian SAC**. Permite a operadores
 | Frontend | React 18 + Vite + TypeScript |
 | Estilos | Tailwind CSS con paleta personalizada |
 | Routing | React Router v6 |
-| Base de datos | Supabase (PostgreSQL) |
+| Base de datos | Supabase (PostgreSQL) + RLS de mínimo privilegio |
 | Auth | Supabase Auth |
-| Storage | Supabase Storage (bucket `evidencias`) |
+| Storage de evidencias | Cloudflare R2 (URL prefirmada vía Edge Function) + compresión en cliente; fallback a Supabase Storage |
 | Formularios | React Hook Form + Zod |
 | Gráficas | Recharts |
+| Import/Export | CSV nativo + `.xlsx` (write-excel-file / read-excel-file, lazy-load) |
 | Fechas | date-fns (formato peruano dd/MM/yyyy) |
 | Notificaciones | React Hot Toast |
+| Tests | Vitest (`npm test`) |
 
 ---
 
@@ -169,8 +173,9 @@ Todos los usuarios comparten el password: **`Akuarian2026!`**
 | `npm run dev` | Servidor de desarrollo con HMR |
 | `npm run build` | Compila TypeScript y genera build de producción en `dist/` |
 | `npm run preview` | Sirve el build de `dist/` para validarlo localmente |
+| `npm test` | Ejecuta la suite de tests (Vitest) |
 
-> Este proyecto **no incluye suite de tests automatizados**. La validación previa al deploy se realiza vía `npm run build` (que ejecuta `tsc` y detecta errores de tipos).
+> Validación previa al deploy: `npm run build` (corre `tsc`, detecta errores de tipos) + `npm test` (tests unitarios de utilidades). Los tests se excluyen del build de producción (`tsconfig.json`).
 
 ---
 

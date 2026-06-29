@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { MapPin, Camera, AlertTriangle, Truck, LogOut } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useRepartidorPedidos } from '../../hooks/useRepartidor'
+import { saludoHora } from '../../lib/utils'
 import { EstadoBadge } from '../../components/shared/EstadoBadge'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import type { EstadoPedido } from '../../types'
@@ -44,7 +45,7 @@ export default function MiRuta() {
       <div className="p-4 max-w-lg mx-auto space-y-4">
         {/* Greeting */}
         <div>
-          <h1 className="text-xl font-bold text-gray-800">Buenos días, {nombreUsuario?.split(' ')[0]}</h1>
+          <h1 className="text-xl font-bold text-gray-800">{saludoHora()}, {nombreUsuario?.split(' ')[0]}</h1>
           <div className="flex gap-2 mt-2 flex-wrap">
             <span className="bg-celeste-100 text-celeste-700 text-xs font-medium px-2.5 py-1 rounded-full">
               {pedidos.length} asignados

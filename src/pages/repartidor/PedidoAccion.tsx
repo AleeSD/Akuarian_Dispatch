@@ -7,7 +7,9 @@ import type { VRepartidorMisPedido, EstadoPedido, MotivoNoEntrega } from '../../
 import { EstadoBadge } from '../../components/shared/EstadoBadge'
 import { Button } from '../../components/ui/Button'
 import { MOTIVO_LABELS } from '../../lib/utils'
+import { subirEvidencia } from '../../lib/r2'
 import { useAuth } from '../../context/AuthContext'
+import { useConfiguracion } from '../../hooks/useConfiguracion'
 
 type AccionTipo = 'recogido' | 'entregado' | 'no_entregado'
 
@@ -20,6 +22,7 @@ export default function PedidoAccion() {
   const { pedidoId } = useParams<{ pedidoId: string }>()
   const navigate = useNavigate()
   const { repartidorId } = useAuth()
+  const cfg = useConfiguracion()
 
   const [pedido, setPedido] = useState<VRepartidorMisPedido | null>(null)
   const [loading, setLoading] = useState(true)
@@ -58,8 +61,16 @@ export default function PedidoAccion() {
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  // Requerimiento de foto según la configuración global (Fase 0.6),
+  // condicionado además al flag por pedido `requiere_foto`.
+  const fotoRequerida = (pedido?.requiere_foto ?? false) && (
+    accion === 'entregado' ? cfg.getBool('foto_requerida_entrega', true)
+    : accion === 'no_entregado' ? cfg.getBool('foto_requerida_no_entrega', true)
+    : true
+  )
+
   const puedeConfirmar = accion !== null && (
-    !pedido?.requiere_foto || foto !== null
+    !fotoRequerida || foto !== null
   ) && (
     accion !== 'no_entregado' || motivo !== null
   )
@@ -71,20 +82,11 @@ export default function PedidoAccion() {
     try {
       let fotoUrl: string | null = null
 
-      // Upload photo
+      // Subir foto: se comprime en el cliente y va a R2 (fallback a Supabase Storage)
       if (foto) {
-        const ext = foto.name.split('.').pop() ?? 'jpg'
-        const path = `${pedidoId}/${accion}/${Date.now()}.${ext}`
-        const { data: uploadData, error: uploadErr } = await supabase.storage
-          .from('evidencias')
-          .upload(path, foto, { contentType: foto.type })
+        fotoUrl = await subirEvidencia(foto, pedidoId, accion)
 
-        if (uploadErr) throw uploadErr
-
-        const { data: urlData } = supabase.storage.from('evidencias').getPublicUrl(uploadData.path)
-        fotoUrl = urlData.publicUrl
-
-        // Insert evidence record
+        // Registrar evidencia
         await supabase.from('evidencias').insert({
           pedido_id: pedidoId,
           subido_por: repartidorId ?? null,
@@ -275,7 +277,7 @@ export default function PedidoAccion() {
           <div className="space-y-2 animate-fadeIn">
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
               <Camera size={14} /> {tipoFotoLabel}
-              {pedido.requiere_foto && (
+              {fotoRequerida && (
                 <span className="text-amber-500 normal-case text-xs font-normal flex items-center gap-1 ml-1">
                   <AlertTriangle size={12} /> Requerida
                 </span>

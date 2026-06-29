@@ -10,6 +10,8 @@ interface AuthContextValue {
   user: User | null
   session: Session | null
   rol: RolUsuario | null
+  /** true para admin y operador; false para supervisor (solo lectura) y repartidor. */
+  puedeEditar: boolean
   repartidorId: string | null
   nombreUsuario: string | null
   loading: boolean
@@ -101,8 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
   }
 
+  const puedeEditar = rol === 'admin' || rol === 'operador'
+
   return (
-    <AuthContext.Provider value={{ user, session, rol, repartidorId, nombreUsuario, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, rol, puedeEditar, repartidorId, nombreUsuario, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )

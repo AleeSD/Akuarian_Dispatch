@@ -11,6 +11,7 @@ import { Modal } from '../components/ui/Modal'
 import { RepartidorAvatar } from '../components/shared/RepartidorAvatar'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { today } from '../lib/utils'
+import { useAuth } from '../context/AuthContext'
 
 const ESTADO_STYLES: Record<string, string> = {
   disponible: 'bg-menta-100 text-menta-700',
@@ -27,6 +28,7 @@ const ESTADO_LABELS: Record<string, string> = {
 }
 
 export default function Repartidores() {
+  const { puedeEditar } = useAuth()
   const [repartidores, setRepartidores] = useState<(Repartidor & { pedidos_hoy?: number })[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -107,9 +109,11 @@ export default function Repartidores() {
             <h1 className="text-xl font-bold text-gray-800">Repartidores</h1>
             <p className="text-sm text-gray-500">{repartidores.length} repartidores activos</p>
           </div>
-          <Button onClick={() => setShowModal(true)}>
-            <Plus size={16} /> Nuevo repartidor
-          </Button>
+          {puedeEditar && (
+            <Button onClick={() => setShowModal(true)}>
+              <Plus size={16} /> Nuevo repartidor
+            </Button>
+          )}
         </div>
 
         {loading ? (

@@ -1,21 +1,54 @@
-import { useState } from 'react'
-import { Menu, Truck, Bell, X, Home, Package, MapPin, Users, BarChart2, LogOut } from 'lucide-react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import {
+  Menu, Truck, Bell, X, Home, Package, Route, Users, BarChart2, LogOut, ChevronDown, Upload,
+} from 'lucide-react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { RepartidorAvatar } from '../shared/RepartidorAvatar'
+import { cn } from '../../lib/utils'
 
 const NAV_ITEMS = [
   { to: '/dashboard',    icon: Home,      label: 'Inicio' },
   { to: '/pedidos',      icon: Package,   label: 'Pedidos' },
-  { to: '/rutas',        icon: MapPin,    label: 'Rutas' },
+  { to: '/rutas',        icon: Route,     label: 'Rutas' },
   { to: '/repartidores', icon: Truck,     label: 'Repartidores' },
   { to: '/clientes',     icon: Users,     label: 'Clientes' },
   { to: '/reportes',     icon: BarChart2, label: 'Reportes' },
+  { to: '/importar',     icon: Upload,    label: 'Importar' },
 ]
 
-export function Header() {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const { nombreUsuario, signOut } = useAuth()
+const TITLES: { match: string; label: string }[] = [
+  { match: '/dashboard',     label: 'Inicio' },
+  { match: '/pedidos',       label: 'Pedidos' },
+  { match: '/rutas',         label: 'Rutas' },
+  { match: '/repartidores',  label: 'Repartidores' },
+  { match: '/clientes',      label: 'Clientes' },
+  { match: '/reportes',      label: 'Reportes' },
+  { match: '/configuracion', label: 'Configuración' },
+  { match: '/importar',      label: 'Importar' },
+]
+
+interface HeaderProps {
+  collapsed?: boolean
+}
+
+export function Header({ collapsed = false }: HeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false)   // drawer móvil
+  const [userOpen, setUserOpen] = useState(false)   // dropdown avatar (escritorio)
+  const { nombreUsuario, rol, signOut } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const userRef = useRef<HTMLDivElement>(null)
+
+  const moduleTitle = TITLES.find((t) => pathname.startsWith(t.match))?.label ?? 'Akuarian Dispatch'
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (userRef.current && !userRef.current.contains(e.target as Node)) setUserOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
 
   async function handleLogout() {
     await signOut()
@@ -24,6 +57,52 @@ export function Header() {
 
   return (
     <>
+      {/* Top bar de escritorio (persistente) */}
+      <header
+        className={cn(
+          'hidden lg:flex fixed top-0 right-0 z-20 h-14 items-center justify-between px-6 bg-celeste-900 text-white transition-all duration-200',
+          collapsed ? 'left-16' : 'left-60',
+        )}
+      >
+        <h1 className="text-sm font-semibold tracking-wide">{moduleTitle}</h1>
+
+        <div className="flex items-center gap-1">
+          <button className="p-2 rounded-lg hover:bg-white/10 text-white/90" title="Notificaciones">
+            <Bell size={18} />
+          </button>
+
+          <div className="relative" ref={userRef}>
+            <button
+              onClick={() => setUserOpen((o) => !o)}
+              className="flex items-center gap-2 p-1 pr-2 rounded-lg hover:bg-white/10"
+            >
+              {nombreUsuario && <RepartidorAvatar nombre={nombreUsuario} size="sm" />}
+              <div className="text-left leading-tight hidden xl:block">
+                <p className="text-xs font-medium">{nombreUsuario}</p>
+                <p className="text-[10px] text-white/70 capitalize">{rol}</p>
+              </div>
+              <ChevronDown size={14} className="text-white/70" />
+            </button>
+
+            {userOpen && (
+              <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-100 py-1 animate-fadeIn text-gray-700">
+                <div className="px-3 py-2 border-b border-gray-100">
+                  <p className="text-sm font-medium text-gray-800 truncate">{nombreUsuario}</p>
+                  <p className="text-xs text-gray-400 capitalize">{rol}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50 text-coral-700"
+                >
+                  <LogOut size={15} /> Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Header móvil */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 h-14 flex items-center px-4">
         <button
           onClick={() => setMenuOpen(true)}
@@ -45,7 +124,7 @@ export function Header() {
         </button>
       </header>
 
-      {/* Mobile drawer */}
+      {/* Drawer móvil */}
       {menuOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Settings, Building2, Bell, SlidersHorizontal, Palette, Save, type LucideIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
+import { invalidarConfiguracion } from '../hooks/useConfiguracion'
 import type { Configuracion as ConfigRow } from '../types'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
@@ -107,6 +108,7 @@ export default function Configuracion() {
       if (errored.length > 0) throw new Error(errored[0].error?.message)
       toast.success(`${cambiosPendientes} ${cambiosPendientes === 1 ? 'cambio guardado' : 'cambios guardados'}`)
       setEditados({})
+      invalidarConfiguracion()
       fetchConfigs()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error al guardar')

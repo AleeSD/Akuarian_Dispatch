@@ -9,7 +9,7 @@ Sistema web para gestión de despachos de Akuarian SAC. Permite a operadores ges
 - **Routing**: React Router v6
 - **Base de datos**: Supabase (PostgreSQL) — proyecto: `ajbkzbtmknlmuucotdol`
 - **Auth**: Supabase Auth
-- **Storage**: Supabase Storage bucket `evidencias`
+- **Storage de evidencias**: Cloudflare R2 (URL prefirmada vía Edge Function `r2-sign-upload`) + compresión en cliente; fallback a Supabase Storage bucket `evidencias`
 - **Forms**: React Hook Form + Zod
 - **Charts**: Recharts
 - **Fechas**: date-fns (formato peruano dd/MM/yyyy)
@@ -42,17 +42,25 @@ Sistema web para gestión de despachos de Akuarian SAC. Permite a operadores ges
 ```
 src/
 ├── components/
-│   ├── ui/              # Button, Input, Select, Textarea, Badge, Card, Modal, Skeleton
-│   ├── layout/          # Sidebar, Header, Layout
-│   └── shared/          # EstadoBadge, RepartidorAvatar, Timeline
+│   ├── ui/              # Button, Input/Select/Textarea, Badge, Card, Modal, Skeleton,
+│   │                   #   Table, FilterBar, KpiStrip, EmptyState  (rediseño)
+│   ├── layout/          # Sidebar (colapsable), Header (top bar + móvil), Layout
+│   └── shared/          # EstadoBadge, SubestadoBadge, RepartidorAvatar, EventTimeline (Timeline.tsx),
+│                        #   ClienteFormModal, RutaEditModal
 ├── pages/
-│   ├── Login, Dashboard, Pedidos, PedidoDetalle, PedidoNuevo
-│   ├── Rutas, RutaDetalle, Repartidores, Clientes, Reportes
+│   ├── Login, Dashboard (Actividad), Pedidos, PedidoDetalle, PedidoNuevo
+│   ├── Rutas, RutaDetalle, Repartidores, Clientes, Reportes, Configuracion, Importar
 │   └── repartidor/      # MiRuta, PedidoAccion (vista móvil)
 ├── hooks/               # usePedidos, useRutas, useRepartidor
-├── lib/                 # supabase.ts, utils.ts
+├── lib/                 # supabase, utils, subestados, csv, xlsx (lazy), imagen, r2
 ├── types/               # index.ts (todas las interfaces TypeScript)
 └── context/             # AuthContext.tsx
+supabase/functions/      # r2-sign-upload (Edge Function: firma subidas a Cloudflare R2)
+```
+
+> **Nota (rediseño jun-2026):** UX "estilo Beetrack" con vistas de tabla densas, subestados,
+> import CSV/`.xlsx`, export `.xlsx` multi-hoja, RLS de mínimo privilegio y evidencias en R2.
+> **Mapas eliminados** por decisión de producto. Ver `docs/ESTADO-DEL-PROYECTO.md`.
 ```
 
 ## Roles y Acceso
@@ -70,7 +78,7 @@ coral:   { 50, 100, 500, 700 }             // Error/alerta rojo
 ## Flujo de Cambio de Estado
 1. Cambiar `estado` en tabla `pedidos`
 2. El trigger `fn_registrar_cambio_estado()` registra automáticamente en `historial_estados`
-3. Para fotos: subir a `supabase.storage.from('evidencias')` → path: `{pedido_id}/{tipo}/{timestamp}.ext`
+3. Para fotos: usar `subirEvidencia()` (`src/lib/r2.ts`) → comprime en cliente (`lib/imagen.ts`) → sube a **Cloudflare R2** vía Edge Function `r2-sign-upload` (URL prefirmada); fallback automático a Supabase Storage si R2 no está configurado. Path: `{pedido_id}/{tipo}/{timestamp}.jpg`. Setup R2: `docs/FASE9-R2-SETUP.md`
 4. Insertar en tabla `evidencias` y actualizar `foto_{tipo}_url` en pedidos
 
 ## Comandos
