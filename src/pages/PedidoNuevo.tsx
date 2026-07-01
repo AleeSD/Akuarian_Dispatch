@@ -21,6 +21,8 @@ const step1Schema = z.object({
   distrito_entrega: z.string().optional(),
   referencia_entrega: z.string().optional(),
   fecha_programada: z.string().min(1, 'Fecha requerida'),
+  ventana_inicio: z.string().optional(),
+  ventana_fin: z.string().optional(),
   prioridad: z.number().min(0).max(3),
   bultos: z.number().min(1, 'Mínimo 1 bulto'),
   peso_kg: z.number().optional(),
@@ -109,6 +111,8 @@ export default function PedidoNuevo() {
         distrito_entrega: step1Data.distrito_entrega || null,
         referencia_entrega: step1Data.referencia_entrega || null,
         fecha_programada: step1Data.fecha_programada,
+        ventana_inicio: step1Data.ventana_inicio || null,
+        ventana_fin: step1Data.ventana_fin || null,
         prioridad: step1Data.prioridad,
         bultos: step1Data.bultos,
         peso_kg: step1Data.peso_kg || null,
@@ -199,6 +203,15 @@ export default function PedidoNuevo() {
                 placeholder="2do piso, frente al parque..."
                 {...form1.register('referencia_entrega')}
               />
+
+              {/* CITA / ventana de entrega comprometida (Fase 3.1) */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1.5">Ventana de entrega (CITA, opcional)</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input type="time" placeholder="Desde" {...form1.register('ventana_inicio')} />
+                  <Input type="time" placeholder="Hasta" {...form1.register('ventana_fin')} />
+                </div>
+              </div>
 
               {/* Prioridad */}
               <div>

@@ -11,15 +11,25 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Table } from '../components/ui/Table'
 import type { Column } from '../components/ui/Table'
+import { Modal } from '../components/ui/Modal'
 import { FilterBar } from '../components/ui/FilterBar'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ClienteFormModal } from '../components/shared/ClienteFormModal'
 import { SkeletonCard } from '../components/ui/Skeleton'
-import { cn } from '../lib/utils'
+import { cn, formatFecha } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
 type ClienteRow = Cliente & { total_pedidos: number }
+
+type ResenaRow = {
+  id: string
+  calificacion: number
+  comentario: string | null
+  creado_en: string
+  cliente: { nombre: string } | null
+  pedido: { numero_pedido: string } | null
+}
 
 const VIEW_KEY = 'akuarian:clientes-view'
 
@@ -40,6 +50,23 @@ export default function Clientes() {
 
   // Modal alta/edición: undefined = cerrado, null = nuevo, Cliente = editar
   const [modalCliente, setModalCliente] = useState<Cliente | null | undefined>(undefined)
+
+  // Reseñas (Fase 3.4)
+  const [showResenas, setShowResenas] = useState(false)
+  const [resenas, setResenas] = useState<ResenaRow[]>([])
+  const [loadingResenas, setLoadingResenas] = useState(false)
+
+  async function abrirResenas() {
+    setShowResenas(true)
+    setLoadingResenas(true)
+    const { data } = await supabase
+      .from('resenas')
+      .select('id, calificacion, comentario, creado_en, cliente:clientes(nombre), pedido:pedidos(numero_pedido)')
+      .order('creado_en', { ascending: false })
+      .limit(50)
+    setResenas((data as unknown as ResenaRow[]) ?? [])
+    setLoadingResenas(false)
+  }
 
   useEffect(() => {
     localStorage.setItem(VIEW_KEY, view)
@@ -191,7 +218,7 @@ export default function Clientes() {
               </button>
             </div>
             <Button variant="ghost" onClick={() => toast('Importar — próximamente', { icon: '🚧' })}><Upload size={16} /> Importar</Button>
-            <Button variant="ghost" onClick={() => toast('Reseñas — próximamente', { icon: '⭐' })}><Star size={16} /> Reseñas</Button>
+            <Button variant="ghost" onClick={abrirResenas}><Star size={16} /> Reseñas</Button>
             {puedeEditar && <Button onClick={() => setModalCliente(null)}><Plus size={16} /> Nuevo cliente</Button>}
           </div>
         </div>
@@ -230,6 +257,32 @@ export default function Clientes() {
           onSaved={fetchClientes}
         />
       )}
+
+      <Modal open={showResenas} onClose={() => setShowResenas(false)} title="Reseñas de clientes" size="lg">
+        {loadingResenas ? (
+          <p className="text-sm text-gray-400 py-6 text-center">Cargando…</p>
+        ) : resenas.length === 0 ? (
+          <EmptyState icon={<Star size={36} />} title="Aún no hay reseñas"
+            description="Las calificaciones de los clientes aparecerán aquí tras cada entrega." />
+        ) : (
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            {resenas.map((r) => (
+              <div key={r.id} className="border border-gray-100 rounded-xl p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star key={n} size={15} className={n <= r.calificacion ? 'text-amber-400 fill-amber-400' : 'text-gray-200'} />
+                    ))}
+                  </div>
+                  <span className="text-[11px] text-gray-400">{formatFecha(r.creado_en)}</span>
+                </div>
+                <p className="text-sm text-gray-700 mt-1">{r.cliente?.nombre ?? '—'} · <span className="font-mono text-celeste-700">{r.pedido?.numero_pedido ?? ''}</span></p>
+                {r.comentario && <p className="text-sm text-gray-500 mt-0.5 italic">"{r.comentario}"</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </Layout>
   )
 }

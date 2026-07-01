@@ -49,49 +49,49 @@ Fuentes: [dispatchtrack.com](https://www.dispatchtrack.com/) · [beetrack.com/es
 
 ---
 
-## Fase 1 — Comunicación con el cliente (el mayor diferenciador de Beetrack)
+## Fase 1 — Comunicación con el cliente (el mayor diferenciador de Beetrack) 🟢 EN GRAN PARTE COMPLETADA (29/06/2026)
 
 **Objetivo:** que el destinatario sepa el estado de su pedido sin llamar. Es **la** función estrella de LastMile.
 
-| # | Tarea | Dificultad | Modelo IA | Notas |
+| # | Tarea | Dificultad | Modelo IA | Estado |
 |---|---|---|---|---|
-| 1.1 | **Notificaciones automáticas al cliente** (estado cambia → mensaje). Empezar por **email** (más simple) vía Edge Function + plantilla. Usar tabla `notificaciones` (hoy vacía) + parámetros de `configuracion`. | ⭐⭐⭐ | **Opus 4.8** (diseño Edge Function + cola/estados) → **Sonnet 4.6** (implementación) | Base para todo lo demás. |
-| 1.2 | **WhatsApp** (canal preferido en Perú) vía proveedor (Twilio/Meta Cloud API) en la misma Edge Function. | ⭐⭐⭐ | **Opus 4.8** | Integración externa + credenciales. |
-| 1.3 | **Notificación pre-entrega** ("tu pedido llega hoy / en X paradas"). | ⭐⭐ | **Sonnet 4.6** | Depende de 1.1. |
-| 1.4 | **Portal público de seguimiento** (`/seguimiento/:token`): el cliente ve estado, ETA y evidencia sin login. Token firmado, RLS de solo lectura. | ⭐⭐⭐⭐ | **Opus 4.8** (arquitectura + seguridad del token) → **Sonnet 4.6** (UI) | Ruta pública nueva fuera de `ProtectedRoute`. |
+| 1.1 | **Notificaciones automáticas al cliente** (estado cambia → mensaje), email vía Edge Function. | ⭐⭐⭐ | **Opus 4.8** → **Sonnet 4.6** | ✅ Modelo + trigger de auto-encolado + Edge Function `enviar-notificaciones` (dry-run sin clave). Falta cargar `RESEND_API_KEY` para envío real — ver `docs/FASE1-NOTIFICACIONES-SETUP.md`. |
+| 1.2 | **WhatsApp** (Twilio/Meta Cloud API) en la misma Edge Function. | ⭐⭐⭐ | **Opus 4.8** | ⏳ Pendiente — el modelo (`canal`/`destino`) ya lo soporta; falta el branch + credenciales del proveedor. |
+| 1.3 | **Notificación pre-entrega** ("tu pedido está en camino"). | ⭐⭐ | **Sonnet 4.6** | ✅ Se encola al pasar a `en_camino` (tipo `pre_entrega`). |
+| 1.4 | **Portal público de seguimiento** (`/seguimiento/:token`). | ⭐⭐⭐⭐ | **Opus 4.8** → **Sonnet 4.6** | ✅ Token por pedido + RPC anon + página pública con stepper e historial. Verificado en navegador. |
 
-**Salida de fase:** el cliente recibe avisos y puede rastrear su pedido. Reduce llamadas y reclamos.
+**Salida de fase:** el cliente puede **rastrear su pedido** (portal verificado) y el sistema **encola y despacha avisos** automáticamente (email en dry-run, listo para activar). **Build + tests verdes.** Pendiente para cerrar 100 %: cargar la clave Resend (envío real) y el canal WhatsApp (1.2).
 
 ---
 
-## Fase 2 — Evidencia y cierre de entrega de nivel profesional
+## Fase 2 — Evidencia y cierre de entrega de nivel profesional ✅ COMPLETADA (30/06/2026)
 
 **Objetivo:** prueba de entrega irrefutable, como exige la operación real.
 
-| # | Tarea | Dificultad | Modelo IA | Notas |
+| # | Tarea | Dificultad | Modelo IA | Estado |
 |---|---|---|---|---|
-| 2.1 | **Firma digital** en la app móvil (canvas táctil → imagen → R2/`firma_url`). | ⭐⭐ | **Sonnet 4.6** | Campo `firma_url` ya existe. |
-| 2.2 | **Captura de receptor + DNI** al entregar (campos `nombre_receptor`, `dni_receptor` ya existen). | ⭐ | **Haiku 4.5** | Solo formulario + guardado. |
-| 2.3 | **Terminar la integración R2** (cargar credenciales) y mostrar **miniaturas** + lightbox de evidencias. | ⭐⭐ | **Sonnet 4.6** | Ver `FASE9-R2-SETUP.md`. |
-| 2.4 | **Entrega parcial** (subestado ya existe): registrar bultos entregados vs. total. | ⭐⭐ | **Sonnet 4.6** | Requiere campo de bultos entregados. |
-| 2.5 | **Modo offline** en la app del repartidor (cola local de acciones, sincroniza al recuperar señal). | ⭐⭐⭐⭐ | **Opus 4.8** | Service Worker + IndexedDB; complejo. |
+| 2.1 | **Firma digital** en la app móvil (canvas táctil → imagen → R2/`firma_url`). | ⭐⭐ | **Sonnet 4.6** | ✅ Componente `FirmaPad` (pointer + fondo blanco) integrado en la entrega; sube como evidencia `firma`. Requisito gobernado por `requiere_firma_entrega`. |
+| 2.2 | **Captura de receptor + DNI** al entregar. | ⭐ | **Haiku 4.5** | ✅ Inputs en la entrega + sección "Entrega" en el detalle. Verificado. |
+| 2.3 | **Terminar la integración R2** (cargar credenciales) + miniaturas + lightbox. | ⭐⭐ | **Sonnet 4.6** | 🟡 Miniaturas + lightbox ya existen (foto y firma clicables); **cargar credenciales R2 es tarea del admin** — ver `docs/FASE9-R2-SETUP.md` (mientras, fallback a Supabase Storage). |
+| 2.4 | **Entrega parcial**: bultos entregados vs. total. | ⭐⭐ | **Sonnet 4.6** | ✅ Columna `bultos_entregados` + control en la app (marca subestado `entrega_con_observaciones`) + badge "parcial" en el detalle. Verificado. |
+| 2.5 | **Modo offline** en la app del repartidor (cola local + sync). | ⭐⭐⭐⭐ | **Opus 4.8** | ✅ Cola en **IndexedDB** (`lib/offline.ts`) que persiste acción + foto + firma; **auto-sync al reconectar** + banner de estado y "Sincronizar" en Mi Ruta. Verificado end-to-end (offline → cola → reconexión → BD actualizada). |
 
-**Salida de fase:** entregas con foto + firma + receptor, evidencias en la nube, soporte de zonas sin señal.
+**Salida de fase:** ✅ **completada.** Entregas con **foto + firma + receptor/DNI**, **entrega parcial** y **operación sin conexión** (cola local + sincronización automática). **Build + tests verdes.** Único pendiente externo: cargar credenciales R2 (2.3) — mientras funciona el fallback a Supabase Storage.
 
 ---
 
-## Fase 3 — Citas, ventanas horarias y alertas operativas
+## Fase 3 — Citas, ventanas horarias y alertas operativas ✅ COMPLETADA (30/06/2026)
 
 **Objetivo:** paridad con la gestión por **CITA** y la **intervención temprana** de Beetrack.
 
-| # | Tarea | Dificultad | Modelo IA | Notas |
+| # | Tarea | Dificultad | Modelo IA | Estado |
 |---|---|---|---|---|
-| 3.1 | **Ventana de entrega comprometida (CITA)** por pedido (hora desde/hasta). La columna "Ventana comprometida" ya existe en `RutaDetalle` pero sin datos. | ⭐⭐ | **Sonnet 4.6** | ALTER tabla + UI en alta de pedido. |
-| 3.2 | **Alertas operativas**: panel/badges de entregas fallidas, tardías (fuera de ventana), parciales y reintentos > máx. | ⭐⭐⭐ | **Opus 4.8** (modelo de reglas) → **Sonnet 4.6** | Usa `max_intentos_entrega` de Config (Fase 0.6). |
-| 3.3 | **Hora estimada vs. hora real** por parada (las columnas existen en `RutaDetalle`, sin lógica). | ⭐⭐ | **Sonnet 4.6** | Estimación simple primero; ETA real en Fase 5. |
-| 3.4 | **NPS / reseñas del cliente** tras la entrega (la UI de "Reseñas" ya existe en Clientes como placeholder). | ⭐⭐⭐ | **Sonnet 4.6** | Tabla nueva + captación vía portal/notificación. |
+| 3.1 | **Ventana de entrega comprometida (CITA)** por pedido. | ⭐⭐ | **Sonnet 4.6** | ✅ Columnas `ventana_inicio/fin` + inputs en alta de pedido + visible en detalle, `RutaDetalle` y portal. Verificado. |
+| 3.2 | **Alertas operativas** (fallidas, fuera de ventana, parciales, reintentos > máx). | ⭐⭐⭐ | **Opus 4.8** → **Sonnet 4.6** | ✅ Vista `v_alertas` + página `/alertas` con KPIs y badges. Usa `max_intentos_entrega`. Verificado (8 alertas). |
+| 3.3 | **Hora estimada vs. hora real** por parada. | ⭐⭐ | **Sonnet 4.6** | ✅ En `RutaDetalle`: hora estimada = inicio de CITA, hora real = timestamp de recogida/entrega, + ventana comprometida. Verificado. |
+| 3.4 | **NPS / reseñas del cliente** tras la entrega. | ⭐⭐⭐ | **Sonnet 4.6** | ✅ Tabla `resenas` + RPC público `registrar_resena` + widget de estrellas en el portal + modal de reseñas en Clientes. Verificado end-to-end. |
 
-**Salida de fase:** la operación ve a tiempo lo que se está retrasando y mide satisfacción.
+**Salida de fase:** ✅ **completada.** CITA por pedido, **módulo de Alertas** para intervención temprana, tiempos estimado/real en la ruta y **NPS** capturado desde el portal público. **Build + tests verdes; advisors sin ERROR.**
 
 ---
 

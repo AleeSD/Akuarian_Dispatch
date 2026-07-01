@@ -11,7 +11,7 @@ import { RepartidorAvatar } from '../components/shared/RepartidorAvatar'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { Skeleton } from '../components/ui/Skeleton'
-import { formatFecha, formatFechaHora, MOTIVO_LABELS, PRIORIDAD_LABELS, PRIORIDAD_COLORS } from '../lib/utils'
+import { formatFecha, formatFechaHora, MOTIVO_LABELS, PRIORIDAD_LABELS, PRIORIDAD_COLORS, ESTADO_LABELS } from '../lib/utils'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
 
@@ -104,6 +104,49 @@ export function PedidoDetalle({ pedidoId, onClose, onUpdated }: Props) {
     if (!pedido) return
     navigator.clipboard?.writeText(pedido.numero_pedido)
     toast.success('Número copiado')
+  }
+
+  function copiarEnlaceSeguimiento() {
+    if (!pedido?.codigo_seguimiento) return
+    const url = `${window.location.origin}/seguimiento/${pedido.codigo_seguimiento}`
+    navigator.clipboard?.writeText(url)
+    toast.success('Enlace de seguimiento copiado')
+  }
+
+  async function enviarNotificacion() {
+    if (!pedido) return
+    if (!pedido.cliente_email) {
+      toast.error('El cliente no tiene email registrado')
+      return
+    }
+    const t = toast.loading('Enviando notificación…')
+    try {
+      const enlace = `${window.location.origin}/seguimiento/${pedido.codigo_seguimiento ?? ''}`
+      const { data: notif, error: insErr } = await supabase
+        .from('notificaciones')
+        .insert({
+          pedido_id: pedido.id,
+          tipo: 'manual',
+          canal: 'email',
+          destino: pedido.cliente_email,
+          asunto: `Pedido ${pedido.numero_pedido} — ${ESTADO_LABELS[pedido.estado]}`,
+          mensaje: `Estado actual de tu pedido ${pedido.numero_pedido}: ${ESTADO_LABELS[pedido.estado]}. Sigue tu pedido aquí: ${enlace}`,
+          estado_envio: 'pendiente',
+        })
+        .select('id')
+        .single()
+      if (insErr) throw insErr
+
+      const { data: res, error: fnErr } = await supabase.functions.invoke('enviar-notificaciones', {
+        body: { notificacion_id: notif.id },
+      })
+      if (fnErr) throw fnErr
+
+      const modo = (res as { modo?: string })?.modo ?? ''
+      toast.success(modo.startsWith('dry-run') ? 'Notificación encolada (modo prueba)' : 'Notificación enviada', { id: t })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al enviar', { id: t })
+    }
   }
 
   return (
@@ -234,12 +277,24 @@ export function PedidoDetalle({ pedidoId, onClose, onUpdated }: Props) {
                   <AlertTriangle size={13} className="text-gray-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs text-gray-500">Confiabilidad de dirección no disponible en esta versión.</p>
-                    <button
-                      onClick={() => toast('Enviar notificación — próximamente', { icon: '🔔' })}
-                      className="text-xs text-celeste-600 hover:text-celeste-700 mt-0.5"
-                    >
-                      Enviar notificación
-                    </button>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      {puedeEditar && (
+                        <button
+                          onClick={enviarNotificacion}
+                          className="text-xs text-celeste-600 hover:text-celeste-700"
+                        >
+                          Enviar notificación
+                        </button>
+                      )}
+                      {pedido.codigo_seguimiento && (
+                        <button
+                          onClick={copiarEnlaceSeguimiento}
+                          className="text-xs text-celeste-600 hover:text-celeste-700"
+                        >
+                          Copiar enlace de seguimiento
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -336,12 +391,49 @@ export function PedidoDetalle({ pedidoId, onClose, onUpdated }: Props) {
                 </section>
               )}
 
+              {/* Entrega (receptor / DNI / bultos / firma) */}
+              {(pedido.nombre_receptor || pedido.firma_url || pedido.bultos_entregados != null) && (
+                <section className="surface-panel p-4 space-y-3">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Entrega</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Campo label="Recibido por" value={pedido.nombre_receptor} />
+                    <Campo label="DNI receptor" value={pedido.dni_receptor} />
+                    {pedido.bultos_entregados != null && (
+                      <div>
+                        <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Bultos entregados</p>
+                        <p className="text-sm text-gray-700">
+                          {pedido.bultos_entregados} / {pedido.bultos}
+                          {pedido.bultos_entregados < pedido.bultos && <span className="text-amber-600"> · parcial</span>}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {pedido.firma_url && (
+                    <div>
+                      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Firma</p>
+                      <img
+                        src={pedido.firma_url}
+                        alt="Firma del receptor"
+                        onClick={() => setLightbox(pedido.firma_url!)}
+                        className="h-20 rounded-lg border border-gray-200 bg-white cursor-pointer"
+                      />
+                    </div>
+                  )}
+                </section>
+              )}
+
               {/* Fechas */}
               <section className="surface-panel p-4 grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <p className="text-gray-400">Programado</p>
                   <p className="font-medium text-gray-700">{formatFecha(pedido.fecha_programada)}</p>
                 </div>
+                {pedido.ventana_inicio && pedido.ventana_fin && (
+                  <div>
+                    <p className="text-gray-400">CITA (ventana)</p>
+                    <p className="font-medium text-gray-700">{pedido.ventana_inicio.slice(0, 5)}–{pedido.ventana_fin.slice(0, 5)}</p>
+                  </div>
+                )}
                 {pedido.recogido_en && (
                   <div>
                     <p className="text-gray-400">Recogido</p>

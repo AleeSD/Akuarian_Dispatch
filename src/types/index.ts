@@ -191,6 +191,33 @@ export interface VPedidoDetalle {
   fotos_entrega: number
   creado_en: string
   actualizado_en: string
+  codigo_seguimiento: string | null
+  bultos_entregados: number | null
+  firma_url: string | null
+  nombre_receptor: string | null
+  dni_receptor: string | null
+  ventana_inicio: string | null
+  ventana_fin: string | null
+}
+
+export interface VAlerta {
+  id: string
+  numero_pedido: string
+  estado: EstadoPedido
+  subestado: string | null
+  fecha_programada: string
+  intento_numero: number
+  bultos: number
+  bultos_entregados: number | null
+  ventana_inicio: string | null
+  ventana_fin: string | null
+  cliente_nombre: string | null
+  ruta_nombre: string | null
+  repartidor_nombre: string | null
+  alerta_no_entregado: boolean
+  alerta_parcial: boolean
+  alerta_reintentos: boolean
+  alerta_fuera_ventana: boolean
 }
 
 export interface VRepartidorMisPedido {

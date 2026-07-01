@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Camera, AlertTriangle, Truck, LogOut } from 'lucide-react'
+import { MapPin, Camera, AlertTriangle, Truck, LogOut, WifiOff, RefreshCw } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useRepartidorPedidos } from '../../hooks/useRepartidor'
+import { useOfflineSync } from '../../hooks/useOfflineSync'
 import { saludoHora } from '../../lib/utils'
 import { EstadoBadge } from '../../components/shared/EstadoBadge'
 import { SkeletonCard } from '../../components/ui/Skeleton'
@@ -13,7 +14,13 @@ const TERMINADOS: EstadoPedido[] = ['entregado', 'no_entregado', 'reprogramado']
 export default function MiRuta() {
   const { nombreUsuario, signOut } = useAuth()
   const { pedidos, loading, error, refetch } = useRepartidorPedidos()
+  const { online, pendientes: colaPendiente, sincronizando, sincronizarAhora } = useOfflineSync()
   const navigate = useNavigate()
+
+  async function handleSincronizar() {
+    await sincronizarAhora()
+    refetch()
+  }
 
   const pendientes = pedidos.filter((p) => PENDIENTES.includes(p.estado))
   const terminados = pedidos.filter((p) => TERMINADOS.includes(p.estado))
@@ -58,6 +65,29 @@ export default function MiRuta() {
             </span>
           </div>
         </div>
+
+        {/* Estado de conexión / cola offline (Fase 2.5) */}
+        {!online && (
+          <div className="flex items-center gap-2 bg-gray-800 text-white text-sm rounded-xl px-3 py-2">
+            <WifiOff size={16} />
+            <span>Sin conexión — tus entregas se guardarán y enviarán al reconectar.</span>
+          </div>
+        )}
+        {colaPendiente > 0 && (
+          <div className="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            <span className="text-sm text-amber-800">
+              {colaPendiente} {colaPendiente === 1 ? 'acción pendiente' : 'acciones pendientes'} de sincronizar
+            </span>
+            <button
+              onClick={handleSincronizar}
+              disabled={!online || sincronizando}
+              className="flex items-center gap-1.5 text-sm font-medium text-celeste-700 disabled:text-gray-400"
+            >
+              <RefreshCw size={14} className={sincronizando ? 'animate-spin' : ''} />
+              {sincronizando ? 'Enviando…' : 'Sincronizar'}
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <div className="space-y-3">

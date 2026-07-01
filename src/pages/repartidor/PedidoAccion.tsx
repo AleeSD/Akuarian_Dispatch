@@ -7,9 +7,12 @@ import type { VRepartidorMisPedido, EstadoPedido, MotivoNoEntrega } from '../../
 import { EstadoBadge } from '../../components/shared/EstadoBadge'
 import { Button } from '../../components/ui/Button'
 import { MOTIVO_LABELS } from '../../lib/utils'
-import { subirEvidencia } from '../../lib/r2'
+import { commitAccion, encolarAccion, generarId } from '../../lib/offline'
+import type { AccionPendiente } from '../../lib/offline'
 import { useAuth } from '../../context/AuthContext'
 import { useConfiguracion } from '../../hooks/useConfiguracion'
+import { FirmaPad } from '../../components/shared/FirmaPad'
+import type { FirmaPadHandle } from '../../components/shared/FirmaPad'
 
 type AccionTipo = 'recogido' | 'entregado' | 'no_entregado'
 
@@ -33,6 +36,12 @@ export default function PedidoAccion() {
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  // Fase 2: cierre de entrega
+  const [receptor, setReceptor] = useState('')
+  const [dni, setDni] = useState('')
+  const [bultosEntregados, setBultosEntregados] = useState<number | null>(null)
+  const [firmaVacia, setFirmaVacia] = useState(true)
+  const firmaRef = useRef<FirmaPadHandle>(null)
 
   useEffect(() => {
     if (!pedidoId) return
@@ -69,68 +78,70 @@ export default function PedidoAccion() {
     : true
   )
 
+  // Firma requerida solo en la entrega, según configuración (Fase 0.6 / 2.1)
+  const firmaRequerida = accion === 'entregado' && cfg.getBool('requiere_firma_entrega', false)
+
   const puedeConfirmar = accion !== null && (
     !fotoRequerida || foto !== null
   ) && (
     accion !== 'no_entregado' || motivo !== null
+  ) && (
+    !firmaRequerida || !firmaVacia
   )
 
   async function confirmar() {
     if (!pedido || !accion || !pedidoId) return
     setSaving(true)
 
+    const estadoNuevo: EstadoPedido = accion === 'recogido' ? 'recogido'
+      : accion === 'entregado' ? 'entregado'
+      : 'no_entregado'
+
+    const total = pedido.bultos
+    const entregados = accion === 'entregado' ? (bultosEntregados ?? total) : null
+    const firmaBlob = accion === 'entregado' ? await firmaRef.current?.getBlob() ?? null : null
+
+    const item: AccionPendiente = {
+      id: generarId(),
+      pedidoId,
+      numeroPedido: pedido.numero_pedido,
+      accion,
+      estadoNuevo,
+      repartidorId: repartidorId ?? null,
+      motivo: accion === 'no_entregado' ? motivo : null,
+      detalleMotivo: detalleMotivo || undefined,
+      receptor: receptor.trim() || undefined,
+      dni: dni.trim() || undefined,
+      bultosEntregados: entregados,
+      subestado: accion === 'entregado' && entregados != null && entregados < total ? 'entrega_con_observaciones' : null,
+      fotoBlob: foto,
+      firmaBlob,
+      creadoEn: Date.now(),
+    }
+
+    const okMsg = accion === 'recogido' ? 'Pedido marcado como recogido'
+      : accion === 'entregado' ? '¡Entrega confirmada!'
+      : 'Pedido registrado como no entregado'
+
     try {
-      let fotoUrl: string | null = null
-
-      // Subir foto: se comprime en el cliente y va a R2 (fallback a Supabase Storage)
-      if (foto) {
-        fotoUrl = await subirEvidencia(foto, pedidoId, accion)
-
-        // Registrar evidencia
-        await supabase.from('evidencias').insert({
-          pedido_id: pedidoId,
-          subido_por: repartidorId ?? null,
-          tipo: accion,
-          foto_url: fotoUrl,
-        })
+      if (!navigator.onLine) {
+        await encolarAccion(item)
+        toast.success('Guardado sin conexión. Se enviará al reconectar.', { icon: '📴' })
+        navigate('/mi-ruta')
+        return
       }
-
-      // Build update payload
-      const estadoNuevo: EstadoPedido = accion === 'recogido' ? 'recogido'
-        : accion === 'entregado' ? 'entregado'
-        : 'no_entregado'
-
-      const updatePayload: Record<string, unknown> = {
-        estado: estadoNuevo,
-      }
-
-      if (accion === 'recogido') {
-        updatePayload.recogido_en = new Date().toISOString()
-        if (fotoUrl) updatePayload.foto_recogido_url = fotoUrl
-      } else if (accion === 'entregado') {
-        updatePayload.fecha_entrega_real = new Date().toISOString()
-        if (fotoUrl) updatePayload.foto_entregado_url = fotoUrl
-      } else if (accion === 'no_entregado') {
-        if (fotoUrl) updatePayload.foto_no_entregado_url = fotoUrl
-        updatePayload.motivo_no_entrega = motivo
-        if (detalleMotivo) updatePayload.detalle_no_entrega = detalleMotivo
-      }
-
-      const { error } = await supabase
-        .from('pedidos')
-        .update(updatePayload)
-        .eq('id', pedidoId)
-
-      if (error) throw error
-
-      toast.success(
-        accion === 'recogido' ? 'Pedido marcado como recogido' :
-        accion === 'entregado' ? '¡Entrega confirmada!' :
-        'Pedido registrado como no entregado'
-      )
+      await commitAccion(item)
+      toast.success(okMsg)
       navigate('/mi-ruta')
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error al confirmar')
+      // Si la falla fue por pérdida de red, encolar en lugar de perder el trabajo
+      if (!navigator.onLine) {
+        await encolarAccion(item)
+        toast.success('Sin conexión: acción guardada en cola.', { icon: '📴' })
+        navigate('/mi-ruta')
+      } else {
+        toast.error(e instanceof Error ? e.message : 'Error al confirmar')
+      }
     } finally {
       setSaving(false)
     }
@@ -269,6 +280,61 @@ export default function PedidoAccion() {
                 onChange={(e) => setDetalleMotivo(e.target.value)}
               />
             )}
+          </div>
+        )}
+
+        {/* Cierre de entrega: receptor, DNI, bultos parciales y firma (Fase 2) */}
+        {accion === 'entregado' && (
+          <div className="bg-white rounded-xl border border-gray-100 p-4 space-y-3 animate-fadeIn">
+            <h3 className="text-sm font-semibold text-gray-700">Datos de entrega</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-gray-500">Recibido por</label>
+                <input
+                  value={receptor}
+                  onChange={(e) => setReceptor(e.target.value)}
+                  placeholder="Nombre"
+                  className="w-full mt-1 rounded-lg border border-gray-200 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-menta-300"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">DNI</label>
+                <input
+                  value={dni}
+                  onChange={(e) => setDni(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                  inputMode="numeric"
+                  placeholder="00000000"
+                  className="w-full mt-1 rounded-lg border border-gray-200 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-menta-300"
+                />
+              </div>
+            </div>
+
+            {pedido.bultos > 1 && (
+              <div>
+                <label className="text-xs text-gray-500">Bultos entregados (de {pedido.bultos})</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={pedido.bultos}
+                  value={bultosEntregados ?? pedido.bultos}
+                  onChange={(e) => setBultosEntregados(Math.max(1, Math.min(pedido.bultos, Number(e.target.value) || pedido.bultos)))}
+                  className="w-full mt-1 rounded-lg border border-gray-200 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-menta-300"
+                />
+                {(bultosEntregados ?? pedido.bultos) < pedido.bultos && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Entrega parcial: {bultosEntregados ?? pedido.bultos}/{pedido.bultos} bultos
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div>
+              <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1">
+                Firma del receptor
+                {firmaRequerida && <span className="text-amber-500 text-xs font-normal">· Requerida</span>}
+              </div>
+              <FirmaPad ref={firmaRef} onChange={setFirmaVacia} />
+            </div>
           </div>
         )}
 

@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   Truck, Home, Package, Route, Users, BarChart2, Settings, LogOut, Upload,
-  PanelLeftClose, PanelLeftOpen,
+  PanelLeftClose, PanelLeftOpen, AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { RepartidorAvatar } from '../shared/RepartidorAvatar'
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { to: '/repartidores', icon: Truck,     label: 'Repartidores' },
   { to: '/clientes',     icon: Users,     label: 'Clientes' },
   { to: '/reportes',     icon: BarChart2, label: 'Reportes' },
+  { to: '/alertas',      icon: AlertTriangle, label: 'Alertas' },
   { to: '/importar',     icon: Upload,    label: 'Importar' },
 ]
 

@@ -11,10 +11,12 @@ import RutaDetalle from './pages/RutaDetalle'
 import Repartidores from './pages/Repartidores'
 import Clientes from './pages/Clientes'
 import Reportes from './pages/Reportes'
+import Alertas from './pages/Alertas'
 import Configuracion from './pages/Configuracion'
 import Importar from './pages/Importar'
 import MiRuta from './pages/repartidor/MiRuta'
 import PedidoAccion from './pages/repartidor/PedidoAccion'
+import Seguimiento from './pages/Seguimiento'
 
 const Spinner = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -53,6 +55,9 @@ function AppRoutes() {
 
   return (
     <Routes>
+      {/* Portal público de seguimiento (sin autenticación) */}
+      <Route path="/seguimiento/:token" element={<Seguimiento />} />
+
       <Route
         path="/login"
         element={
@@ -113,6 +118,12 @@ function AppRoutes() {
       <Route path="/reportes" element={
         <ProtectedRoute requiredRole={['admin', 'operador', 'supervisor']}>
           <Reportes />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/alertas" element={
+        <ProtectedRoute requiredRole={['admin', 'operador', 'supervisor']}>
+          <Alertas />
         </ProtectedRoute>
       } />
 

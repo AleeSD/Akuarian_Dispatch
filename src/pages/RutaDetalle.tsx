@@ -21,6 +21,9 @@ import { formatHora, cn } from '../lib/utils'
 type Tab = 'despachos' | 'cobros'
 type PedidoFila = VPedidoDetalle & { _idx: number }
 
+/** "09:00:00" → "09:00" */
+const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null)
+
 export default function RutaDetalle() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -87,7 +90,12 @@ export default function RutaDetalle() {
         </div>
       ),
     },
-    { key: 'hora_estimada', header: 'Hora estimada', align: 'right', render: () => <span className="text-gray-300">—</span> },
+    {
+      key: 'hora_estimada',
+      header: 'Hora estimada',
+      align: 'right',
+      render: (p) => (p.ventana_inicio ? <span className="text-gray-700">{hhmm(p.ventana_inicio)}</span> : <span className="text-gray-300">—</span>),
+    },
     {
       key: 'hora_real',
       header: 'Hora real',
@@ -97,7 +105,14 @@ export default function RutaDetalle() {
         return t ? <span className="text-gray-700">{formatHora(t)}</span> : <span className="text-gray-300">—</span>
       },
     },
-    { key: 'ventana', header: 'Ventana comprometida', align: 'right', render: () => <span className="text-gray-300">—</span> },
+    {
+      key: 'ventana',
+      header: 'Ventana comprometida',
+      align: 'right',
+      render: (p) => (p.ventana_inicio && p.ventana_fin
+        ? <span className="text-gray-700 whitespace-nowrap">{hhmm(p.ventana_inicio)}–{hhmm(p.ventana_fin)}</span>
+        : <span className="text-gray-300">—</span>),
+    },
     {
       key: 'direccion_entrega',
       header: 'Dirección',
